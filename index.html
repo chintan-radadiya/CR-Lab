@@ -615,6 +615,9 @@
       border-top: 1px solid var(--line)
     }
 
+    .response-tools { justify-content: center; flex: 1 }
+    .response-tools .btn { min-width: 118px }
+
     .q-nav {
       background: #fff;
       border: 1px solid var(--line);
@@ -689,9 +692,28 @@
     .solution-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; font-weight: 800 }
     .solution-answer { margin: 9px 0; padding: 10px 12px; border-radius: 10px; background: rgba(9, 13, 24, .52); color: #e8edff }
     .solution-reasoning { color: #bac4da; font-size: 13px; line-height: 1.65 }
+    .solution-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px }
+    .solution-step { padding: 11px 12px; border: 1px solid #2c3b54; border-radius: 11px; background: rgba(9, 13, 24, .34) }
+    .solution-step strong { display: block; margin-bottom: 4px; color: #d8ddff }
+    .confidence-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border: 1px solid #345a52; border-radius: 999px; color: #75dfbd; background: #122a27; font-size: 11px }
+    .confidence-badge.unkeyed { border-color: #68434a; color: #ff9aaa; background: #321a21 }
     .solution-disclaimer { margin-top: 9px; color: #8491ac; font-size: 11px }
+    .argument-map { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px }
+    .argument-node { position: relative; padding: 11px 12px 11px 36px; border: 1px solid #31405b; border-radius: 11px; background: rgba(9, 13, 24, .42); color: #d5dbea }
+    .argument-node::before { position: absolute; left: 12px; top: 11px; display: grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: #5558c8; color: #fff; font-size: 10px; font-weight: 800 }
+    .argument-node.evidence::before { content: 'E' }
+    .argument-node.claim::before { content: 'C'; background: #1f9b85 }
+    .argument-node strong { display: block; margin-bottom: 4px; color: #f0f2ff }
+    .choice-audit { margin-top: 10px; border: 1px solid #2c3b54; border-radius: 11px; background: rgba(9, 13, 24, .28); overflow: hidden }
+    .choice-audit summary { cursor: pointer; padding: 11px 12px; color: #d8ddff; font-weight: 750; list-style-position: inside }
+    .choice-audit-list { max-height: 310px; overflow: auto; padding: 0 11px 11px; scrollbar-color: #5558c8 #141b2a }
+    .choice-audit-row { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; padding: 9px 7px; border-top: 1px solid #29364d; color: #b8c1d5; font-size: 12px; line-height: 1.5 }
+    .choice-audit-row.correct { color: #9be7ce; background: rgba(31, 155, 133, .08) }
+    .choice-audit-letter { display: grid; place-items: center; align-self: start; width: 23px; height: 23px; border-radius: 7px; background: #242f46; color: #eef0ff; font-weight: 800 }
+    .choice-audit-row.correct .choice-audit-letter { background: #1f806f }
     .analysis-modal .modal-card { width: min(820px, 100%); text-align: left }
     .analysis-modal .q-stem { margin: 14px 0; font-size: 15px }
+    @media(max-width:680px) { .solution-grid, .argument-map { grid-template-columns: 1fr } }
 
     .footer-note {
       text-align: center;
@@ -1464,6 +1486,7 @@
 <body>
   <div id="app"></div>
   <script src="cr_app_data.js"></script>
+  <script src="cr_explanation_engine.js"></script>
   <script>
     (() => {
       const DATA = window.CR_DATA;
@@ -1473,24 +1496,25 @@
       const TOPIC_FAMILY = { Assumption: 'Argument Evaluation', Strengthen: 'Argument Evaluation', Weaken: 'Argument Evaluation', 'Paradox / Explain': 'Argument Evaluation', Evaluate: 'Argument Evaluation', Flaw: 'Argument Analysis', 'Main Point': 'Argument Analysis', Conclusion: 'Argument Analysis', 'Method / Point at Issue': 'Argument Analysis', 'Role / Function': 'Argument Analysis', 'Argument Structure': 'Argument Analysis', Interpretation: 'Argument Analysis', Inference: 'Deduction', 'Conditional / Deductive Logic': 'Deduction', 'Complete the Passage': 'Deduction', 'Parallel Reasoning': 'Application', Principle: 'Application', 'Plan / Decision': 'Application', Other: 'Other' };
       function classifyQuestion(q) {
         const p = q.prompt.replace(/\s+/g, ' ').toLowerCase(), tail = p.slice(-650); let topic = '';
-        if (/complete(s)? (the )?(passage|argument)|best completes|most logical completion/.test(tail)) topic = 'Complete the Passage';
-        else if (/point at issue|disagree about|disagreement between|responds? to .* by/.test(tail)) topic = 'Method / Point at Issue';
-        else if (/parallel|most similar (in|to)|most closely (parallels|resembles)|analogous pattern|same logical (error|features?|structure)|closest.*logical features/.test(tail)) topic = 'Parallel Reasoning';
-        else if (/which (one )?of .*principle|principle (above|stated)|conforms? to the (principle|rule|proposition)|application of .*principle|principle.*justif/.test(tail)) topic = 'Principle';
-        else if (/resolve|reconcile|explain (the|this|why)|account for|apparent (discrepancy|paradox|conflict)|contributes most to an explanation/.test(tail)) topic = 'Paradox / Explain';
-        else if (/evaluate|logical evaluation|most useful to know|most useful (for|in) (determining|assessing)|relevant to an evaluation|answer to which.*question/.test(tail)) topic = 'Evaluate';
+        if (/which (one )?of the following statements provides? support for the claim/.test(p)) topic = 'Strengthen';
+        else if (/complete(s)? (the )?(passage|argument)|best completes|most logical completion/.test(tail)) topic = 'Complete the Passage';
+        else if (/point at issue|disagree about|disagreement between|logical relationship between .*arguments|consistent with .* claim but not|responds? to .* by/.test(tail)) topic = 'Method / Point at Issue';
+        else if (/parallel|most similar (in|to)|most closely (parallels|resembles)|most like .*logical structure|logical structure most like|analogous pattern|same logical (error|features?|structure)|closest.*logical features/.test(tail)) topic = 'Parallel Reasoning';
+        else if (/which (one )?of .*principle|best illustrates .*hypothesis|serve as an illustration|principle (above|stated)|conforms? to the (principle|rule|proposition)|application of .*principle|principle.*justif/.test(tail)) topic = 'Principle';
+        else if (/resolve|reconcile|explain (the|this|why)|account for|best accounts? for|provides? a rationale|apparent (discrepancy|paradox|conflict)|contributes most to an explanation/.test(tail)) topic = 'Paradox / Explain';
+        else if (/evaluat(e|ing|ion)|logical evaluation|most (useful|helpful) to know|most useful (for|in) (determining|assessing)|relevant to an evaluation|answer to which.*question/.test(tail)) topic = 'Evaluate';
         else if (/assum|unstated premise|depends? on|requires? which|presuppos|taken for granted|argument .* based on$/.test(tail)) topic = 'Assumption';
-        else if (/weaken|undermine|cast.*doubt|refut|calls? into question|most damaging|evidence against|prediction .* inaccurate|challenge to the critics|allay|ease .* fear|argues? most strongly against/.test(tail)) topic = 'Weaken';
-        else if (/strengthen|supports? (the|this|.* hypothesis|.* recommendation)|provides?.*(support|evidence)|gives? .*support|confirm|substantiat|soundness|justification for/.test(tail)) topic = 'Strengthen';
-        else if (/flaw|error of reasoning|reasoning error|vulnerable to .*criticism|weak(ness| point)|best critique|questionable (because|technique)|criticism.*reasoning|jeopardizes? the validity|conclusion .* unsound|relies on$/.test(tail)) topic = 'Flaw';
-        else if (/role .*play|function .*statement|serves? which.*function|use .*statement.*to/.test(tail)) topic = 'Role / Function';
+        else if (/weaken|undermine|cast.*doubt|refut|calls? into question|most damaging|best objection|counter .*point|invalidate .*use|indicates? .*insufficient|effectively defend .* against|challenge .*conclusion|evidence against|prediction .* inaccurate|challenge to the critics|allay|ease .* fear|argues? most strongly against/.test(tail)) topic = 'Weaken';
+        else if (/strengthen|additional premise|would work best if|most important to establish|supports? (the|this|.* hypothesis|.* recommendation)|provides?.*(support|evidence)|support for the claim|gives? .*support|confirm|substantiat|soundness|justification for/.test(tail)) topic = 'Strengthen';
+        else if (/flaw|identif(y|ies) an error|error of reasoning|reasoning error|vulnerable to .*criticism|weak(ness| point)|best critique|best basis for a criticism|reveal.*absurdity|questionable (because|technique)|criticism.*reasoning|jeopardizes? the validity|conclusion .* unsound|relies on$/.test(tail)) topic = 'Flaw';
+        else if (/role .*play|function .*statement|serves? which.*(function|role)|use .*statement.*to/.test(tail)) topic = 'Role / Function';
         else if (/method of (reasoning|argument|persuasion)|author.s method|proceeds? by|argumentative strategy|strateg(y|ies) is used|technique of reasoning|organization of the argument|attempts? to prove.* by|does which .* in .* reply/.test(tail)) topic = 'Argument Structure';
         else if (/main point|main idea|primary purpose|best summarizes|central claim/.test(tail)) topic = 'Main Point';
-        else if (/conclusion for which|author.*conclusion|conclusion of the argument|expresses? the conclusion|concludes? that/.test(tail)) topic = 'Conclusion';
+        else if (/conclusion for which|author.*conclusion|conclusion of the argument|expresses? the conclusion|concludes? that|structured to lead to .*conclusion/.test(tail)) topic = 'Conclusion';
         else if (/cannot be true|not consistent|could be true except|must be false/.test(tail)) topic = 'Conditional / Deductive Logic';
-        else if (/can be inferred|may be inferred|properly inferred|validly inferred|inferences? can be drawn|most reliable inference|must (also )?be true|follows logically|conclusions? can (most )?(properly )?be drawn|logically (derived|deduced|concluded)|most strongly supports? which|supported by the (statements|information)/.test(tail)) topic = 'Inference';
+        else if (/can be inferred|may be inferred|properly inferred|validly inferred|inferences? can be drawn|most reliable inference|must (also )?be true|must also be accurate|follows logically|conclusions? can .{0,25}drawn|most probably also true|conflicts with (the )?information|logically (derived|deduced|concluded)|most strongly supports? which|supported by the (statements|information)/.test(tail)) topic = 'Inference';
         else if (/interpreted .* to imply|clarify the meaning|opinion .* based primarily|invites? which.*conclusion|best describes how .* counters/.test(tail)) topic = 'Interpretation';
-        else if (/which .*?(plan|policy|strategy|action|recommendation)|best prospects for|most likely to minimize|most effective way|should .* (do|use|adopt)|advisable to/.test(tail)) topic = 'Plan / Decision';
+        else if (/which .*?(plan|policy|strategy|action|recommendation)|best prospects for|most likely to (minimize|reduce|decrease)|most effective way|least likely to contribute .*objective|would be beneficial to|should .* (do|use|adopt)|advisable to/.test(tail)) topic = 'Plan / Decision';
         if (topic) q.topic = topic;
         q.type = q.topic; q.family = TOPIC_FAMILY[q.topic] || 'Other';
       }
@@ -1515,8 +1539,19 @@
         'Plan / Decision': 'Test whether the option advances the stated objective while respecting the constraints and avoiding a predictable failure.',
         Other: 'Compare each choice directly with the exact task in the question stem and eliminate choices that go beyond or conflict with the passage.'
       };
-      function buildExplanation(q) { const choice = q.choices.find(c => c.label === q.answer); if (!q.answer || !choice) return { answer: 'Source key unavailable', answerText: '', reasoning: 'The supplied PDF does not provide a usable answer key for this item, so the platform excludes it from scored accuracy rather than inventing a solution.' }; return { answer: `Option ${q.answer}`, answerText: choice.text, reasoning: EXPLANATION_GUIDE[q.type] || EXPLANATION_GUIDE.Other } }
-      DATA.questions.forEach(q => { classifyQuestion(q); q.explanation = buildExplanation(q) });
+      const TRAP_GUIDE = {
+        Assumption: 'Reject choices that merely strengthen, restate a premise, or would be helpful but are not required. Use the negation test on close contenders.',
+        Strengthen: 'Reject background facts, irrelevant comparisons, premise restatements, and choices whose effect on the conclusion is ambiguous.',
+        Weaken: 'Reject choices that attack the topic rather than the reasoning, are compatible with the conclusion, or require an extra assumption to matter.',
+        'Paradox / Explain': 'Reject choices that explain only one side, intensify the conflict, or introduce a fact unrelated to the exact discrepancy.',
+        Inference: 'Reject answers that are merely plausible, reverse a conditional relationship, use stronger language than the passage, or introduce outside knowledge.',
+        Flaw: 'Reject vague criticisms and descriptions of something the argument does not actually do. Match the exact premise-to-conclusion gap.',
+        'Parallel Reasoning': 'Reject surface-topic matches. Compare quantifiers, conditional direction, conclusion strength, and whether the original reasoning is valid or flawed.',
+        Principle: 'Reject choices that match the subject but fail one condition of the rule, reverse sufficient and necessary conditions, or exceed the principle’s scope.',
+        Other: 'Reject choices that distort scope, reverse relationships, introduce outside facts, or answer a different question.'
+      };
+      function buildExplanation(q) { return window.CRExplanationEngine.build(q) }
+      window.CRExplanationEngine.enrich(DATA.questions, classifyQuestion);
       const state = { view: 'dashboard', selectedTest: null, selectedSection: null, topicFilter: new Set(), topicCount: 10, session: null, topicStrategy: 'random', errorFilter: 'All', errorStatus: 'Open', pages: {}, confirmReset: false, analysis: null, toast: null };
       const app = document.getElementById('app');
       const qById = new Map(DATA.questions.map(q => [q.id, q]));
@@ -1524,7 +1559,11 @@
       let toastTimer = null, saveTimer = null;
 
       function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-      function solutionHTML(q, attempt) { const x = q.explanation, status = attempt?.correct === true ? 'Correct' : attempt?.correct === false ? 'Incorrect' : 'Not scored'; return `<div class="solution-panel ${attempt?.correct === false ? 'incorrect' : ''}"><div class="solution-title"><span>Solution · ${esc(q.type)}</span><span class="${attempt?.correct === true ? 'good' : attempt?.correct === false ? 'bad' : 'warn'}">${status}</span></div><div class="solution-answer"><strong>${esc(x.answer)}</strong>${x.answerText ? ` — ${esc(x.answerText)}` : ''}</div><div class="solution-reasoning"><strong>Reasoning approach:</strong> ${esc(x.reasoning)}</div><div class="solution-disclaimer">Generated study guidance based on the PDF answer key and classified question type; it is not an authored explanation from the source PDF.</div></div>` }
+      function solutionHTML(q, attempt) {
+        const x = q.explanation, status = attempt?.correct === true ? 'Correct' : attempt?.correct === false ? 'Incorrect' : 'Not scored';
+        const audit = (x.choiceAnalysis || []).map(item => `<div class="choice-audit-row ${item.correct ? 'correct' : ''}"><span class="choice-audit-letter">${esc(item.label)}</span><span><strong>${item.correct ? 'Keyed answer. ' : ''}</strong>${esc(item.reason)}</span></div>`).join('');
+        return `<div class="solution-panel ${attempt?.correct === false ? 'incorrect' : ''}"><div class="solution-title"><span>Question-specific review · ${esc(q.type)}</span><span class="${attempt?.correct === true ? 'good' : attempt?.correct === false ? 'bad' : 'warn'}">${status}</span></div><div class="row between wrap"><div class="solution-answer"><strong>${esc(x.answer)}</strong>${x.answerText ? ` — ${esc(x.answerText)}` : ''}</div><span class="confidence-badge ${x.keyed ? '' : 'unkeyed'}">${esc(x.confidence)}</span></div><div class="argument-map"><div class="argument-node evidence solution-reasoning"><strong>Evidence used in this item</strong>${esc(x.evidence)}</div><div class="argument-node claim solution-reasoning"><strong>Claim / result being tested</strong>${esc(x.conclusion)}</div></div><div class="solution-grid"><div class="solution-step solution-reasoning"><strong>How to approach this exact task</strong>${esc(x.method)}</div><div class="solution-step solution-reasoning"><strong>Why ${esc(x.answer)} is correct</strong>${esc(x.why)}</div></div>${audit ? `<details class="choice-audit"><summary>Inspect every option</summary><div class="choice-audit-list">${audit}</div></details>` : ''}<div class="solution-step solution-reasoning" style="margin-top:10px"><strong>High-score takeaway</strong>${esc(x.takeaway)}</div><div class="solution-disclaimer">The PDF is treated only as the question-and-answer-key source. It contains no authored explanations. This item-specific reasoning is generated from the full stimulus, stem, keyed option, and alternatives; it is independent coaching analysis, not an official GMAT, LSAT, or CAT solution.</div></div>`
+      }
       function analysisModal() { const ref = state.analysis; if (!ref) return ''; const sessions = store().sessions || [], s = sessions.find(x => x.id === ref.sessionId) || (state._result?.id === ref.sessionId ? state._result : null), q = qById.get(ref.qid), a = s?.answers?.[ref.qid]; if (!q) return ''; return `<div class="modal analysis-modal" role="dialog" aria-modal="true" aria-labelledby="analysis-title"><div class="modal-card"><div class="row between"><div><strong id="analysis-title">Question ${q.number} analysis</strong><div class="tiny muted">${esc(q.family)} · ${esc(q.type)} · ${esc(displayTestTitle(q.corpus, q.test, q.section))}</div></div><button class="btn small" data-action="close-analysis">Close</button></div><div class="q-stem">${esc(q.prompt)}</div><div>${q.choices.map(c => `<div class="choice ${c.label === q.answer ? 'selected' : ''}"><span class="letter">${c.label}</span><span>${esc(c.text)}${c.label === a?.selected ? ' <span class="tiny muted">· Your answer</span>' : ''}</span></div>`).join('')}</div>${solutionHTML(q, a)}</div></div>` }
       function uid(prefix = 'id') { return prefix + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8) }
       function loadStore() { try { const data = JSON.parse(localStorage.getItem(STORE) || '{"sessions":[],"errors":[],"notes":{}}'); (data.sessions || []).forEach(s => Object.entries(s.answers || {}).forEach(([qid, a]) => { a.qid = qid; a.time = Number(s.times?.[qid]) || 0 })); return data } catch { return { sessions: [], errors: [], notes: {} } } }
@@ -1621,8 +1660,11 @@
         app.querySelectorAll('[data-action="pause-session"]').forEach(b => b.onclick = pauseSession); app.querySelectorAll('[data-action="continue-session"]').forEach(b => b.onclick = continueSession);
         app.querySelectorAll('[data-analyze-session]').forEach(b => b.onclick = () => analyzeSession(b.dataset.analyzeSession)); app.querySelectorAll('[data-analyze-question]').forEach(b => b.onclick = () => openQuestionAnalysis(b.dataset.sessionId, b.dataset.analyzeQuestion)); app.querySelectorAll('[data-action="close-analysis"]').forEach(b => b.onclick = () => { state.analysis = null; render() });
         app.querySelectorAll('[data-page-key]').forEach(b => b.onclick = () => changePage(b.dataset.pageKey, b.dataset.page));
+        app.querySelectorAll('[data-action="clear-response"]').forEach(b => b.onclick = clearResponse); app.querySelectorAll('[data-action="check-answer"]').forEach(b => b.onclick = checkAnswer);
       }
-      function selectAnswer(label) { const q = currentQ(); if (!q || !state.session || state.session.answers[q.id]?.selected) return; state.session.answers[q.id] = { qid: q.id, selected: label, correct: q.answer ? (q.answer === label) : null }; saveCurrent(); render() }
+      function selectAnswer(label) { const q = currentQ(); if (!q || !state.session || state.session.answers[q.id]?.checked) return; const previous = state.session.answers[q.id] || {}; state.session.answers[q.id] = { ...previous, qid: q.id, selected: label, correct: q.answer ? q.answer === label : null, checked: false }; saveCurrent(); render() }
+      function clearResponse() { const q = currentQ(), a = q ? state.session?.answers?.[q.id] : null; if (!q || !a?.selected || a.checked) return; delete state.session.answers[q.id]; saveCurrent(); render() }
+      function checkAnswer() { const q = currentQ(), a = q ? state.session?.answers?.[q.id] : null; if (!q || !a?.selected || a.checked) return; a.checked = true; a.checkedAt = Date.now(); saveCurrent(); render() }
       function move(dir) { if (!state.session) return; stopQuestionTimer(); const ni = state.session.index + dir; if (ni < 0 || ni >= state.session.questionIds.length) { if (dir > 0) finishSession(); else { state.session.index = 0; startQuestionTimer(); render(); scrollQuestionTop() } return } const sec = sectionForIndex(ni); if (sec !== state.session.currentSection) setSectionTimer(sec); state.session.index = ni; startQuestionTimer(); render(); scrollQuestionTop() }
       function goTo(i) { if (!state.session || i === state.session.index) return; stopQuestionTimer(); const sec = sectionForIndex(i); if (sec !== state.session.currentSection) setSectionTimer(sec); state.session.index = i; startQuestionTimer(); render(); scrollQuestionTop() }
       function resumeCurrent() { const cur = loadCurrent(); if (!cur) { state.view = 'topics'; render(); return } state.session = cur; state.view = 'practice'; if (!state.session.paused) { if (!state.session._qStartedAt) state.session._qStartedAt = Date.now(); if (!state.session.sectionEndsAt && state.session.mode === 'test') { const sec = state.session.currentSection || sectionForIndex(state.session.index), minutes = Number(state.session.sectionTimes?.[sec]) || 0, began = state.session.sectionStartedAt || state.session.startedAt || state.session.createdAt; state.session.currentSection = sec; state.session.sectionStartedAt = began; state.session.sectionEndsAt = minutes ? began + minutes * 60 * 1000 : null } } saveCurrent(); render() }
@@ -1656,7 +1698,8 @@
           if (q && metaLine) metaLine.textContent = `${q.family} · ${q.type} · CAT ${q.test} ${q.section}`;
           if (timerEl) timerEl.dataset.liveTimer = 'true';
           if (flagButton && !state.session?.paused) flagButton.insertAdjacentHTML('beforebegin', '<button class="btn small" data-action="pause-session">Pause</button>');
-          if (q && attempt?.selected && choices) { choices.querySelectorAll('input[name="answer"]').forEach(input => input.disabled = true); choices.insertAdjacentHTML('beforeend', solutionHTML(q, attempt)) }
+          const actions = app.querySelector('.q-actions'); if (actions?.firstElementChild) actions.firstElementChild.insertAdjacentHTML('afterend', `<div class="row wrap response-tools"><button class="btn small" data-action="clear-response" ${!attempt?.selected || attempt?.checked ? 'disabled' : ''}>Clear response</button><button class="btn small primary" data-action="check-answer" ${!attempt?.selected || attempt?.checked ? 'disabled' : ''}>${attempt?.checked ? 'Answer checked' : 'Check answer'}</button></div>`);
+          if (q && attempt?.checked && choices) { choices.querySelectorAll('input[name="answer"]').forEach(input => input.disabled = true); choices.insertAdjacentHTML('beforeend', solutionHTML(q, attempt)) }
         }
         if (state.view === 'topics') app.querySelectorAll('.topic-card').forEach(card => { const topic = card.querySelector('[data-topic]')?.dataset.topic, label = card.querySelector('.tiny.muted'); if (topic && label) label.textContent = `${TOPIC_FAMILY[topic] || 'Other'} · CAT question type` });
         if (state.view === 'dashboard') { const backup = app.querySelector('[data-action="backup"]'); if (backup) backup.insertAdjacentHTML('afterend', '<button class="btn small danger" data-action="request-reset">Remove all progress</button>') }
