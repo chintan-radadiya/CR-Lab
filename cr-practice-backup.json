@@ -1,0 +1,222 @@
+{
+  "sessions": [
+    {
+      "id": "sess_mu11q6ck_7wu62x",
+      "createdAt": 1789378447268,
+      "updatedAt": 1789400995987,
+      "mode": "topic",
+      "modeLabel": "Focused CAT practice",
+      "corpus": "CAT",
+      "test": "Custom set",
+      "section": "Custom",
+      "sectionLabel": "Custom",
+      "questionIds": [
+        "gmat-i-main-8",
+        "gmat-2-main-5",
+        "gmat-7-main-18",
+        "gmat-13-main-15",
+        "lsat-24-Section I-9"
+      ],
+      "answers": {
+        "gmat-i-main-8": {
+          "selected": "D",
+          "correct": true
+        },
+        "gmat-2-main-5": {
+          "selected": "B",
+          "correct": true
+        },
+        "gmat-7-main-18": {
+          "selected": "C",
+          "correct": false
+        },
+        "gmat-13-main-15": {
+          "selected": "E",
+          "correct": false
+        },
+        "lsat-24-Section I-9": {
+          "selected": "B",
+          "correct": false
+        }
+      },
+      "times": {
+        "gmat-i-main-8": 152.15419999998807,
+        "gmat-2-main-5": 114.88369999992847,
+        "gmat-7-main-18": 187.49009999996423,
+        "gmat-13-main-15": 163.04839999997614,
+        "lsat-24-Section I-9": 158.25870000004767
+      },
+      "flags": {},
+      "index": 4,
+      "sectionTimes": {},
+      "currentSection": "Section I",
+      "sectionEndsAt": null,
+      "startedAt": 1789378447268
+    },
+    {
+      "id": "sess_mu1faa16_1ca7vs",
+      "createdAt": 1789401220169,
+      "updatedAt": 1789402124068,
+      "mode": "topic",
+      "modeLabel": "Focused CAT practice",
+      "corpus": "CAT",
+      "test": "Custom set",
+      "section": "Custom",
+      "sectionLabel": "Custom",
+      "questionIds": [
+        "lsat-23-Section II-18",
+        "lsat-11-Section I-3",
+        "lsat-3-Section I-2",
+        "lsat-23-Section II-2",
+        "lsat-25-Section II-19"
+      ],
+      "answers": {
+        "lsat-23-Section II-18": {
+          "selected": "C",
+          "correct": false
+        },
+        "lsat-11-Section I-3": {
+          "selected": "E",
+          "correct": true
+        },
+        "lsat-3-Section I-2": {
+          "selected": "E",
+          "correct": false
+        },
+        "lsat-23-Section II-2": {
+          "selected": "E",
+          "correct": false
+        },
+        "lsat-25-Section II-19": {
+          "selected": "C",
+          "correct": false
+        }
+      },
+      "times": {
+        "lsat-23-Section II-18": 227.127,
+        "lsat-11-Section I-3": 143.248,
+        "lsat-3-Section I-2": 105.313,
+        "lsat-23-Section II-2": 132.185,
+        "lsat-25-Section II-19": 270.249
+      },
+      "flags": {},
+      "index": 4,
+      "sectionTimes": {},
+      "currentSection": "Section II",
+      "sectionStartedAt": null,
+      "sectionEndsAt": null,
+      "startedAt": 1789401220169,
+      "paused": false,
+      "pausedAt": null,
+      "pausedSectionRemainingMs": null
+    }
+  ],
+  "errors": [
+    {
+      "id": "err_mu1f5iyn_v428yl",
+      "sessionId": "sess_mu11q6ck_7wu62x",
+      "qid": "gmat-7-main-18",
+      "corpus": "GMAT",
+      "test": "7",
+      "section": "Main",
+      "number": 18,
+      "selected": "C",
+      "answer": "B",
+      "time": 187.49009999996423,
+      "status": "Open",
+      "note": "",
+      "createdAt": 1789378447268
+    },
+    {
+      "id": "err_mu1f5iyn_xuyuzo",
+      "sessionId": "sess_mu11q6ck_7wu62x",
+      "qid": "gmat-13-main-15",
+      "corpus": "GMAT",
+      "test": "13",
+      "section": "Main",
+      "number": 15,
+      "selected": "E",
+      "answer": "D",
+      "time": 163.04839999997614,
+      "status": "Open",
+      "note": "",
+      "createdAt": 1789378447268
+    },
+    {
+      "id": "err_mu1f5iyn_j0wxjc",
+      "sessionId": "sess_mu11q6ck_7wu62x",
+      "qid": "lsat-24-Section I-9",
+      "corpus": "LSAT",
+      "test": "24",
+      "section": "Section I",
+      "number": 9,
+      "selected": "B",
+      "answer": "C",
+      "time": 158.25870000004767,
+      "status": "Open",
+      "note": "",
+      "createdAt": 1789378447268
+    },
+    {
+      "id": "err_mu1ftobx_43azod",
+      "sessionId": "sess_mu1faa16_1ca7vs",
+      "qid": "lsat-23-Section II-18",
+      "corpus": "LSAT",
+      "test": "23",
+      "section": "Section II",
+      "number": 18,
+      "selected": "C",
+      "answer": "E",
+      "time": 227.127,
+      "status": "Open",
+      "note": "",
+      "createdAt": 1789401220169
+    },
+    {
+      "id": "err_mu1ftobx_lqmqqg",
+      "sessionId": "sess_mu1faa16_1ca7vs",
+      "qid": "lsat-3-Section I-2",
+      "corpus": "LSAT",
+      "test": "3",
+      "section": "Section I",
+      "number": 2,
+      "selected": "E",
+      "answer": "A",
+      "time": 105.313,
+      "status": "Open",
+      "note": "",
+      "createdAt": 1789401220169
+    },
+    {
+      "id": "err_mu1ftoby_injoqj",
+      "sessionId": "sess_mu1faa16_1ca7vs",
+      "qid": "lsat-23-Section II-2",
+      "corpus": "LSAT",
+      "test": "23",
+      "section": "Section II",
+      "number": 2,
+      "selected": "E",
+      "answer": "C",
+      "time": 132.185,
+      "status": "Open",
+      "note": "",
+      "createdAt": 1789401220169
+    },
+    {
+      "id": "err_mu1ftoby_6pz7zf",
+      "sessionId": "sess_mu1faa16_1ca7vs",
+      "qid": "lsat-25-Section II-19",
+      "corpus": "LSAT",
+      "test": "25",
+      "section": "Section II",
+      "number": 19,
+      "selected": "C",
+      "answer": "A",
+      "time": 270.249,
+      "status": "Open",
+      "note": "",
+      "createdAt": 1789401220169
+    }
+  ],
+  "notes": {}
+}
