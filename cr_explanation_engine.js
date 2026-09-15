@@ -2,7 +2,7 @@
   'use strict';
 
   const GUIDES = {
-    Assumption: 'Find the exact gap between the evidence and the claim. Negate the keyed statement: if the reasoning loses essential support, the statement is required.',
+    Assumption: 'Identify the gap and read the stem carefully: a necessary assumption must hold for the reasoning to work; a sufficient assumption must make the conclusion follow. Apply the test the stem requests.',
     Strengthen: 'Hold the evidence fixed and identify what the keyed fact changes about the probability of the claim.',
     Weaken: 'Hold the evidence fixed and identify how the keyed fact makes the claim less secure.',
     'Paradox / Explain': 'Keep both reported facts true and find the distinction or mechanism that lets them coexist.',
@@ -57,11 +57,18 @@
   }
 
   function sentences(value) {
-    return (clean(value).match(/[^.!?]+(?:[.!?]+|$)/g) || []).map(clean).filter(Boolean);
+    // Preserve abbreviations and decimals before locating sentence boundaries.
+    const protectedText = clean(value)
+      .replace(/\b(?:[A-Za-z]\.){2,}|\b(?:Mr|Mrs|Ms|Dr|Prof|St|Mt|vs)\./g, match => match.replace(/\./g, '\uE000'))
+      .replace(/(\d)\.(?=\d)/g, '$1\uE000');
+    return (protectedText.match(/[^.!?]+(?:[.!?]+|$)/g) || [])
+      .map(part => clean(part.replace(/\uE000/g, '.'))).filter(Boolean);
   }
 
   function splitQuestion(prompt) {
     const text = clean(prompt);
+    const introductoryStem = text.match(/^(Which\b[^?]*\b(?:passage|argument)\s+below\?)(?:\s+)([\s\S]+)$/i);
+    if (introductoryStem) return { stem: introductoryStem[1], stimulus: introductoryStem[2] };
     let splitAt = -1;
     let explicit = [...text.matchAll(/\bWhich\b/g)].filter(match => match.index > 20);
     if (!explicit.length) explicit = [...text.matchAll(/\bOf the following\b/g)].filter(match => match.index > 20 && /(?:^|[.!?]\s*)$/.test(text.slice(0, match.index)));
@@ -102,9 +109,14 @@
     return { stimulus: clean(text.slice(0, splitAt)), stem: clean(text.slice(splitAt)) };
   }
 
-  function conclusionOf(stimulus) {
+  function conclusionOf(stimulus, stem = '') {
     const parts = sentences(stimulus);
     if (!parts.length) return 'No independent claim was cleanly separable from the source text.';
+    const target = stem.match(/\b(?:conclusion|claim)(?:\s+(?:drawn|made|expressed|stated|presented))?\s+in\s+the\s+(first|second|last|final)\s+sentence\b/i);
+    if (target) {
+      const index = { first: 0, second: 1, last: parts.length - 1, final: parts.length - 1 }[target[1].toLowerCase()];
+      if (parts[index]) return clip(parts[index]);
+    }
     let result = '';
     parts.forEach(sentence => {
       const marker = sentence.match(/\b(?:therefore|thus|hence|consequently|accordingly|clearly|it follows that|we can conclude that|so)\b[:,]?\s*(.+)/i);
@@ -152,16 +164,30 @@
   }
 
   function negate(value) {
-    const swaps = [
-      [/\ball\b/i, 'not all'], [/\bevery\b/i, 'not every'], [/\bno\b/i, 'at least one'],
-      [/\bnever\b/i, 'sometimes'], [/\balways\b/i, 'not always'], [/\bonly\b/i, 'not only'],
-      [/\bcannot\b/i, 'can'], [/\bcan\b/i, 'cannot'], [/\bmust\b/i, 'need not'],
-      [/\bwill\b/i, 'will not'], [/\bare\b/i, 'are not'], [/\bis\b/i, 'is not']
-    ];
-    for (const [pattern, replacement] of swaps) {
-      if (pattern.test(value)) return clean(value.replace(pattern, replacement));
-    }
-    return `It is not true that ${clean(value).replace(/[.?!]+$/, '')}.`;
+    // Negate the entire proposition: replacing individual words can change
+    // quantifier scope, miss an existing negation, or negate the wrong clause.
+    return `It is not true that (${clean(value).replace(/[.?!]+$/, '')}).`;
+  }
+
+  function assumptionKind(stem) {
+    if (/\b(?:follows? logically|logically follows?|properly (?:drawn|inferred)|validly (?:drawn|inferred))\s+if\b/i.test(stem)) return 'sufficient';
+    if (/\b(?:depends? on|relies? on|requires?|necessary|not properly drawn unless|must be assumed)\b/i.test(stem)) return 'necessary';
+    return 'unspecified';
+  }
+
+  function assumptionMethod(stem) {
+    const kind = assumptionKind(stem);
+    if (kind === 'sufficient') return 'This stem requests a sufficient assumption. Add the option to the premises and test whether the conclusion must follow. A sufficient condition need not be necessary; the negation test does not establish sufficiency.';
+    if (kind === 'necessary') return 'This stem requests a necessary assumption. Negate the whole option while preserving its scope, then test whether the argument loses support it requires. The assumption need not prove the conclusion by itself.';
+    return GUIDES.Assumption;
+  }
+
+  function assumptionReason(question, parts, answer) {
+    const context = `The argument uses “${clip(parts.evidence, 270)}” to reach “${clip(parts.conclusion, 250)}”. The PDF keys option ${question.answer}: “${clip(answer, 280)}”. `;
+    const kind = assumptionKind(parts.stem);
+    if (kind === 'sufficient') return `${context}To verify that choice, add it to the stated premises and trace the steps to the conclusion. Check that the added condition closes the gap without requiring another unstated premise; necessity alone would not answer this stem.`;
+    if (kind === 'necessary') return `${context}Test its necessity by considering “${negate(answer)}” while holding the stated evidence fixed. Identify the precise support the argument loses in that case; a useful strengthening fact alone would not meet this requirement.`;
+    return `${context}Determine from the exact instruction whether the task asks for a required condition or a condition that guarantees the conclusion. Then test the keyed statement against that requirement.`;
   }
 
   function restoreSharedStimuli(questions) {
@@ -182,11 +208,14 @@
         }
       }
     }));
+    // This known pair lacks a range marker in the extraction. Do not infer a
+    // shared passage merely because an unrelated question happens to be short.
+    const sharedReferences = { 'lsat-12-Section II-2': 'lsat-12-Section II-1' };
+    const byId = new Map(questions.map(question => [question.id, question]));
     questions.forEach(question => {
-      const prompt = clean(question.prompt);
-      if (prompt.length > 240 || !/^(?:Which|The (?:argument|statement|claim|hypothesis)|In evaluating)\b/i.test(prompt) || !/\b(?:passage|argument|hypothesis|above|dialogue|statements?)\b/i.test(prompt)) return;
-      const previous = lookup.get(`${question.corpus}|${question.test}|${question.section}|${Number(question.number) - 1}`);
+      const previous = byId.get(sharedReferences[question.id]);
       if (!previous) return;
+      const prompt = clean(question.prompt);
       const shared = splitQuestion(previous.prompt).stimulus;
       if (shared.length >= 80 && !prompt.includes(shared.slice(0, 60))) question.prompt = `${shared} ${prompt}`;
     });
@@ -208,7 +237,9 @@
   }
 
   function isReverseStem(stem) {
-    return /\bEXCEPT\b|\bNOT\b|least (?:supports|weakens|helps)|cannot be true|must be false/i.test(stem);
+    // Negation within the claim ("strengthen the claim that X was not Y")
+    // does not reverse the task. Match negated task instructions specifically.
+    return /\bEXCEPT\b|\bleast (?:supports?|weakens?|helps?|likely|useful)\b|\b(?:cannot|could not) be true\b|\bmust be false\b|\b(?:is|are|does|do|would|could)\s+not\s+(?:necessarily\s+)?(?:true|follow|supported|support|explain|account|weaken|strengthen|resolve|reconcile|provide)\b/i.test(stem);
   }
 
   function quotedClaim(stem) {
@@ -279,7 +310,7 @@
     }
 
     const reason = {
-      Assumption: `The argument uses “${clip(evidence, 270)}” to reach “${clip(conclusion, 250)}”. Option ${question.answer} states “${clip(answer, 280)}”. ${bridge} Negate it — “${clip(negate(answer), 260)}” — and the evidence can remain true while the conclusion loses the link it needs. That is why this statement is necessary, not merely helpful.`,
+      Assumption: assumptionReason(question, parts, answer),
       Strengthen: `The claim to support is “${clip(conclusion, 260)}”. Option ${question.answer} adds “${clip(answer, 290)}”. ${bridge} With that fact in place, the evidence is more diagnostic of the claim and a competing interpretation is less plausible, so the conclusion becomes more likely.`,
       Weaken: `The argument moves from “${clip(evidence, 270)}” to “${clip(conclusion, 250)}”. Option ${question.answer} adds “${clip(answer, 290)}”. ${bridge} The same evidence is now compatible with the conclusion being false or less certain; the premise may stand, but it supports the claimed result less strongly.`,
       'Paradox / Explain': `The passage asks us to preserve the reported facts while explaining their tension. Option ${question.answer} supplies the missing circumstance: “${clip(answer, 300)}”. ${bridge} Once that distinction is added, the observations in “${clip(evidence, 270)}” can coexist rather than contradict one another.`,
@@ -305,25 +336,30 @@
   function wrongReason(question, choice, parts) {
     const focus = quotedTerms(focusTerms(choice.text, `${parts.evidence} ${parts.conclusion}`), 'a side issue');
     const strong = /\b(?:all|any|every|never|none|only|always|completely|entirely)\b/i.test(choice.text);
-    if (isReverseStem(parts.stem)) return `This choice satisfies the ordinary property named in the reverse-polarity stem, so it is not the exception. Its focus on ${focus} can remain consistent with the passage.`;
-    if (question.type === 'Assumption') return `This focuses on ${focus}, but the argument does not require that exact claim. Denying it need not destroy the evidence-to-conclusion link.`;
-    if (question.type === 'Strengthen') return `This introduces ${focus}, but it does not make the specific conclusion more probable on the stated evidence.`;
-    if (question.type === 'Weaken') return `This concerns ${focus}, yet it leaves the key evidence-to-conclusion link intact or needs another unstated fact before it would hurt the claim.`;
-    if (question.type === 'Paradox / Explain') return `This discusses ${focus}, but it gives no mechanism that makes both sides of the discrepancy true together.`;
-    if (question.type === 'Inference' || question.type === 'Conditional / Deductive Logic') return `This turns to ${focus}${strong ? ' and uses language stronger than the stimulus supports' : ''}. The stated facts do not force it.`;
-    if (question.type === 'Flaw') return `This describes a concern involving ${focus}, not the gap created by moving from the quoted evidence to the quoted conclusion.`;
-    if (question.type === 'Evaluate') return `A yes or no about ${focus} would not produce opposite effects on the conclusion.`;
-    if (question.type === 'Parallel Reasoning') return `Its treatment of ${focus} changes the original argument’s premise/conclusion pattern or logical force.`;
-    if (question.type === 'Principle') return `This case emphasizes ${focus}, but misses or changes a condition required by the stated principle.`;
-    if (['Role / Function', 'Argument Structure', 'Method / Point at Issue'].includes(question.type)) return `This centers on ${focus}, but assigns the statement or speaker a logical job not performed here.`;
-    if (question.type === 'Conclusion' || question.type === 'Main Point') return `This captures ${focus}, a premise, example, or narrower side point rather than the controlling conclusion.`;
-    return `This shifts attention to ${focus}; it does not perform the exact operation requested in the stem.`;
+    const lead = `Review the statement about ${focus}. `;
+    if (isReverseStem(parts.stem)) return `${lead}Check whether it meets the ordinary condition named in the stem; distinguish that from the exception the question requests.`;
+    if (question.type === 'Assumption') {
+      if (assumptionKind(parts.stem) === 'sufficient') return `${lead}Add it to the stated premises and try to construct a case where those premises and this option hold but the conclusion is false.`;
+      if (assumptionKind(parts.stem) === 'necessary') return `${lead}Negate the whole statement, preserving its scope, and check whether the argument needs it or whether it merely supplies additional support.`;
+      return `${lead}Read the stem to determine whether necessity or sufficiency is required, then apply that test to the option.`;
+    }
+    if (question.type === 'Strengthen') return `${lead}Identify whether it increases the conclusion’s likelihood, then compare the strength and relevance of that support with the keyed option.`;
+    if (question.type === 'Weaken') return `${lead}Test whether it damages the evidence-to-conclusion link and whether its effect depends on an additional unstated fact.`;
+    if (question.type === 'Paradox / Explain') return `${lead}Keep both reported facts true and test whether the statement supplies a mechanism that explains their apparent conflict.`;
+    if (question.type === 'Inference' || question.type === 'Conditional / Deductive Logic') return `${lead}Try to construct a case in which the premises hold and this option is false.${strong ? ' Pay particular attention to its absolute or restrictive wording.' : ''}`;
+    if (question.type === 'Flaw') return `${lead}Identify the precise move the option criticizes, then locate that move in this argument.`;
+    if (question.type === 'Evaluate') return `${lead}Test both possible answers and identify how each changes support for the conclusion.`;
+    if (question.type === 'Parallel Reasoning') return `${lead}Map its premises and conclusion, then compare their direction, quantifiers, and logical force with the original.`;
+    if (question.type === 'Principle') return `${lead}Check every condition of the principle before deciding whether it licenses the proposed judgment.`;
+    if (['Role / Function', 'Argument Structure', 'Method / Point at Issue'].includes(question.type)) return `${lead}Locate the relevant statement or speaker and check the exact logical function or commitment attributed by this option.`;
+    if (question.type === 'Conclusion' || question.type === 'Main Point') return `${lead}Determine whether it expresses the central claim, a supporting premise, or an example, and compare its scope with the whole passage.`;
+    return `${lead}Compare the option with the exact task in the stem and identify what the passage does or does not establish.`;
   }
 
   function build(question) {
     const keyedChoice = question.choices.find(choice => choice.label === question.answer);
     const split = splitQuestion(question.prompt);
-    const conclusion = conclusionOf(split.stimulus);
+    const conclusion = conclusionOf(split.stimulus, split.stem);
     const evidence = evidenceOf(split.stimulus, conclusion);
     const parts = { ...split, conclusion, evidence, prompt: question.prompt };
 
@@ -334,7 +370,8 @@
         why: 'No answer is asserted because the supplied PDF does not contain a usable key for this item.',
         stimulus: split.stimulus, stem: split.stem, evidence, conclusion, choiceAnalysis: [],
         takeaway: 'Treat this question as unscored until an independent expert review establishes the answer.',
-        confidence: 'Unkeyed source item', keyed: false, specific: true
+        confidence: 'Unkeyed source item', keyed: false, specific: false,
+        reviewStatus: 'unkeyed'
       };
     }
 
@@ -349,7 +386,7 @@
     return {
       answer: `Option ${question.answer}`,
       answerText: keyedChoice.text,
-      method: GUIDES[question.type] || GUIDES.Other,
+      method: question.type === 'Assumption' ? assumptionMethod(split.stem) : GUIDES[question.type] || GUIDES.Other,
       why: correctReason(question, parts, keyedChoice.text),
       stimulus: split.stimulus,
       stem: split.stem,
@@ -357,9 +394,10 @@
       conclusion,
       choiceAnalysis,
       takeaway: `Reduce this item to: “${clip(evidence, 190)}” → “${clip(conclusion, 170)}”. Option ${question.answer} is keyed because it performs the stem’s requested operation on that exact link.`,
-      confidence: 'PDF key · item-specific analysis',
+      confidence: 'Automated draft · PDF key',
       keyed: true,
-      specific: true
+      specific: false,
+      reviewStatus: 'draft'
     };
   }
 

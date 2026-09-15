@@ -1,0 +1,11 @@
+{
+  "name": "cat-critical-reasoning-lab",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-isolation=none",
+    "audit:content": "node scripts/content-audit.cjs",
+    "start": "node scripts/serve.cjs",
+    "test:browser": "node tests/browser-smoke.cjs"
+  }
+}
